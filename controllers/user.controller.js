@@ -33,15 +33,27 @@ const getAllUsers = async(req, res) => {
 
 // delete a user
 const deleteUser = async(req, res) => {
-    const { token } = req.cookies;
-    const { id: userId } = jwt.verify(token, "danieligwe");
-    const { id } = req.body;
-    // Ensure the authenticated user is updating their own account
-    if (id !== userId) {
-        return res.status(403).json({ message: "You can only update your own account!" });
-    }
-
     try {
+        // check if token exists
+        const { token } = req.cookies;
+        if (!token) {
+            return res.status(401).send({ message: "Unauthorized: No token provided" })
+        }
+
+        // verify token
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
+            return res.status(401).json({ message: "Unauthorized: Invalid or expired token" });
+        }
+
+        const userId = decoded.id; // Extract user ID from token
+        const { id } = req.params; // Extract user ID from URL parameters
+        // Ensure the authenticated user is updating their own account
+        if (id !== userId.toString()) {
+            return res.status(403).json({ message: "Forbidden. You can only update your own account!" });
+        }
         await userModel.findByIdAndDelete(id);
         res.json({message: "User deleted successfuly!"});
     } catch (error) {
@@ -65,15 +77,37 @@ const getOneUser = async(req, res) => {
 
 // update a user
 const updateUser = async(req, res) => {
-    const {id, username, age, occupation, location} = req.body;
-
-    // Ensure the authenticated user is updating their own account
-    if (req.user.id !== id) {
-        return res.status(403).json({ message: "You can only update your own account!" });
-    }
-
+    const {username, age, occupation, location} = req.body;
     try {
-        const updatedUser = await userModel.findByIdAndUpdate(id, {username, age, occupation, location}, {new: true});
+        // check if token exists
+        const { token } = req.cookies;
+        if (!token) {
+            return res.status(401).send({ message: "Unauthorized: No token provided" })
+        }
+
+        // verify token
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
+            return res.status(401).json({ message: "Unauthorized: Invalid or expired token" });
+        }
+
+        const userId = decoded.id; // Extract user ID from token
+        const { id } = req.params; // Extract user ID from URL parameters
+
+        // Check if user exists before updating
+        const user = await userModel.findById(id);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Ensure the authenticated user is updating their own account
+        if (id !== userId.toString()) {
+            return res.status(403).json({ message: "Forbidden. You can only update your own account!" });
+        }
+
+        const updatedUser = await userModel.findByIdAndUpdate(id, {username, age, occupation, location}, { new: true, runValidators: true });
         res.json({message: "User details updated successfully!", user: updatedUser});
     } catch (error) {
         res.status(500).json({message: "Something went wrong!"});

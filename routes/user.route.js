@@ -18,9 +18,9 @@ routes.post("/login", loginUser);
 
 // Protected routes
 routes.get("/user", getAllUsers);
-routes.put("/user", updateUser);
+routes.put("/user/:id", updateUser);
 routes.get("/user/:id", getOneUser);
-routes.delete("/user", deleteUser);
+routes.delete("/user/:id", deleteUser);
 
 
 module.exports = routes;
